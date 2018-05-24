@@ -62,7 +62,7 @@ class Racer:
         self.position += self.velocity * dt;
 
         # TODO 1.1: After the terrain height is correct, uncomment this line to make the racer follow the ground height
-        #self.position[2] = lu.mix(self.position[2], info.height + self.zOffset, 0.1);
+        self.position[2] = lu.mix(self.position[2], info.height + self.zOffset, 0.1);
 
     def drawUi(self):
         imgui.label_text("Speed", "%0.1fm/s"%self.speed)

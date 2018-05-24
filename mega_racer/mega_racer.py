@@ -284,6 +284,11 @@ def update(dt, keyStateMap, mouseDelta):
     g_globalAmbientLight = sampleKeyFrames(lu.dot(lu.normalize(g_sunPosition), vec3(0.0, 0.0, 1.0)), g_ambientKeyFrames)
 
     g_racer.update(dt, keyStateMap)
+    viewAngle = math.pi / 4
+    viewHeight = g_followCamOffset*2 / math.sqrt(2) #height of view position
+    viewDistanceXYPlaneVec = viewHeight * normalize(g_racer.heading)
+    g_viewPosition = [g_racer.position[0] - viewDistanceXYPlaneVec[0], g_racer.position[1] - viewDistanceXYPlaneVec[1], viewHeight + g_racer.position[2]]
+    g_viewTarget = [g_racer.position[0], g_racer.position[1], g_racer.position[2] + g_followCamLookOffset]
 
     # TODO 1.2: Make the camera look at the racer. Code for updating the camera should be done after the 
     # racer, otherwise the offset will lag and it generally looks weird.
