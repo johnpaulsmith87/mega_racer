@@ -29,7 +29,7 @@ class Terrain:
     imageHeight = 0
     shader = None
     renderWireFrame = False
-
+    terrainTexId = None
     # Lists of locations generated from the map texture green channel (see the 'load' method)
     # you can add any other meaning of other values as you see fit.
     
@@ -53,9 +53,12 @@ class Terrain:
         lu.setUniform(self.shader, "xyNormScale", xyNormScale);
         xyOffset = -(vec2(self.imageWidth, self.imageHeight) + vec2(1.0)) * self.xyScale / 2.0;
         lu.setUniform(self.shader, "xyOffset", xyOffset);
-
+         #FINISH HERE
         #TODO 1.4: Bind the grass texture to the right texture unit, hint: lu.bindTexture
-
+        lu.bindTexture(self.TU_Grass, self.terrainTexId)
+        lu.setUniform(self.shader, "terrainTexture", self.TU_Grass)
+        
+        
         if self.renderWireFrame:
             glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
             glLineWidth(1.0);
@@ -69,6 +72,7 @@ class Terrain:
 
 
     def load(self, imageName, renderingSystem):
+        self.terrainTexId = ObjModel.loadTexture("data/grass2.png","", False)
         with Image.open(imageName)  as im:
             self.imageWidth = im.size[0]
             self.imageHeight = im.size[1]
@@ -180,7 +184,7 @@ class Terrain:
             uniform float terrainTextureXyScale;
             uniform vec2 xyNormScale;
             uniform vec2 xyOffset;
-
+            
 
             // 'out' variables declared in a vertex shader can be accessed in the subsequent stages.
             // For a fragment shader the variable is interpolated (the type of interpolation can be modified, try placing 'flat' in front here and in the fragment shader!).
@@ -221,14 +225,15 @@ class Terrain:
 
             uniform float terrainHeightScale;
             uniform float terrainTextureXyScale;
+            uniform sampler2D terrainTexture;
 
             out vec4 fragmentColor;
 
             void main() 
             {
-                vec3 materialColour = vec3(v2f_height/terrainHeightScale);
+                //vec3 materialColour = vec3(v2f_height/terrainHeightScale);
                 // TODO 1.4: Compute the texture coordinates and sample the texture for the grass and use as material colour.
-
+                vec3 materialColour = texture(terrainTexture, vec2(v2f_worldSpacePosition.x,v2f_worldSpacePosition.y) * terrainTextureXyScale).xyz;
                 vec3 reflectedLight = computeShading(materialColour, v2f_viewSpacePosition, v2f_viewSpaceNormal, viewSpaceLightPosition, sunLightColour);
 	            fragmentColor = vec4(toSrgb(reflectedLight), 1.0);
 	            //fragmentColor = vec4(toSrgb(vec3(v2f_height/terrainHeightScale)), 1.0);
@@ -272,3 +277,17 @@ class Terrain:
         info.height = float(imagePixel[0]) * self.heightScale / 255.0;
         info.material = TerrainInfo.M_Road if imagePixel[2] == 255 else TerrainInfo.M_Rough
         return info;
+
+def load_terrain_texture(textureFile):
+    with Image.open(textureFile) as image:
+        texId = glGenTextures(1)
+        glBindTexture(GL_TEXTURE_2D, texId)
+        data = image.tobytes("raw", "RGBX" if image.mode == 'RGB' else "RGBA", 0, -1)
+        glTexImage2D(GL_TEXTURE_2D,0,GL_RGBA,image.size[0],image.size[1],0,GL_RGBA,
+                     GL_UNSIGNED_BYTE,data)
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT)
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT)
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR)
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST)
+        glBindTexture(GL_TEXTURE_2D, 0)
+        return texId

@@ -52,6 +52,7 @@ g_sunAngle = 0.0
 g_terrain = None
 g_racer = None
 
+
 #
 # Key-frames for the sun light and ambient, picked by hand-waving to look ok. Note how most of this is nonsense from a physical point of view and 
 # some of the reasoning is basically to compensate for the lack of exposure (or tone-mapping).
@@ -517,6 +518,9 @@ g_terrain.load("data/track_01_128.png", g_renderingSystem);
 
 g_racer = Racer()
 g_racer.load("data/racer_forwardz.obj", g_terrain, g_renderingSystem);
+
+# here we'll implement the grass texture loading//etc..
+# I may place this code in a helper function in the future
 
 currentTime = glfw.get_time()
 prevMouseX,prevMouseY = glfw.get_cursor_pos(window)
