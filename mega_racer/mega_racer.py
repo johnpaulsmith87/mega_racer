@@ -38,7 +38,7 @@ g_viewPosition = [ 100.0, 100.0, 100.0 ];
 g_viewTarget = [ 0.0, 0.0, 0.0 ];
 g_viewUp = [ 0.0, 0.0, 1.0 ];
 
-g_followCamOffset = 25.0
+g_followCamOffset = 34.0 #looks better!
 g_followCamLookOffset = 10.0
 
 g_sunStartPosition = [0.0, 0.0, 1000.0]
@@ -284,8 +284,7 @@ def update(dt, keyStateMap, mouseDelta):
     g_globalAmbientLight = sampleKeyFrames(lu.dot(lu.normalize(g_sunPosition), vec3(0.0, 0.0, 1.0)), g_ambientKeyFrames)
 
     g_racer.update(dt, keyStateMap)
-    viewAngle = math.pi / 4
-    viewHeight = g_followCamOffset*2 / math.sqrt(2) #height of view position
+    viewHeight = g_followCamOffset / math.sqrt(2) #the *1.33 is a fudge factor to look nice
     viewDistanceXYPlaneVec = viewHeight * normalize(g_racer.heading)
     g_viewPosition = [g_racer.position[0] - viewDistanceXYPlaneVec[0], g_racer.position[1] - viewDistanceXYPlaneVec[1], viewHeight + g_racer.position[2]]
     g_viewTarget = [g_racer.position[0], g_racer.position[1], g_racer.position[2] + g_followCamLookOffset]
@@ -517,7 +516,7 @@ g_terrain = Terrain()
 g_terrain.load("data/track_01_128.png", g_renderingSystem);
 
 g_racer = Racer()
-g_racer.load("data/racer_02.obj", g_terrain, g_renderingSystem);
+g_racer.load("data/racer_forwardz.obj", g_terrain, g_renderingSystem);
 
 currentTime = glfw.get_time()
 prevMouseX,prevMouseY = glfw.get_cursor_pos(window)

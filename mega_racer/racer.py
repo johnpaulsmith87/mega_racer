@@ -26,12 +26,13 @@ class Racer:
 
     def render(self, view, renderingSystem):
         # TODO 1.3: This is a good place to draw the racer model instead of the sphere
-        lu.drawSphere(self.position, 1.5, [1,0,0,1], view)
+        modelToWorldTransform = lu.make_mat4_from_zAxis(self.position, self.heading, vec3(0,0,1))
+        renderingSystem.drawObjModel(self.model, modelToWorldTransform, view)
 
     def load(self, objModelName, terrain, renderingSystem):
         self.terrain = terrain
         self.position = terrain.startLocations[0]
-        # TODO 1.3: This is a good place create and load the racer model
+        self.model = ObjModel(objModelName)
 
     def update(self, dt, keyStateMap):
         info = self.terrain.getInfoAt(self.position);
