@@ -29,7 +29,12 @@ class Terrain:
     imageHeight = 0
     shader = None
     renderWireFrame = False
-    terrainTexId = None
+    terrainTexId = None #grass
+    highTexId = None #high texture
+    roadTexId = None
+    steepTexId = None
+    terrainDataSampleTexId = None
+
     # Lists of locations generated from the map texture green channel (see the 'load' method)
     # you can add any other meaning of other values as you see fit.
     
@@ -42,6 +47,10 @@ class Terrain:
 
     # Texture unit allocaitons:
     TU_Grass = 0
+    TU_high = 1
+    TU_road = 2
+    TU_steep = 3
+    TU_map = 4
 
     def render(self, view, renderingSystem):
         glUseProgram(self.shader)
@@ -72,7 +81,11 @@ class Terrain:
 
 
     def load(self, imageName, renderingSystem):
-        self.terrainTexId = ObjModel.loadTexture("data/grass2.png","", False)
+        self.terrainTexId = ObjModel.loadTexture("data/grass2.png","", True)
+        self.highTexId = ObjModel.loadTexture("data/rock 2.png","",True)
+        self.roadTexId = ObjModel.loadTexture("data/paving 5.png","", True)
+        self.steepTexId = ObjModel.loadTexture("data/rock 5.png","", True)
+        self.terrainDataSampleTexId = ObjModel.loadTexture("data/track_01_128.png","", False)
         with Image.open(imageName)  as im:
             self.imageWidth = im.size[0]
             self.imageHeight = im.size[1]
