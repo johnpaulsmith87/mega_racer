@@ -288,7 +288,7 @@ def update(dt, keyStateMap, mouseDelta):
     g_globalAmbientLight = sampleKeyFrames(lu.dot(lu.normalize(g_sunPosition), vec3(0.0, 0.0, 1.0)), g_ambientKeyFrames)
 
     g_racer.update(dt, keyStateMap)
-    viewHeight = g_followCamOffset / math.sqrt(2) #the *1.33 is a fudge factor to look nice
+    viewHeight = g_followCamOffset / math.sqrt(2)
     viewDistanceXYPlaneVec = viewHeight * normalize(g_racer.heading)
     g_viewPosition = [g_racer.position[0] - viewDistanceXYPlaneVec[0], g_racer.position[1] - viewDistanceXYPlaneVec[1], viewHeight + g_racer.position[2]]
     g_viewTarget = [g_racer.position[0], g_racer.position[1], g_racer.position[2] + g_followCamLookOffset]

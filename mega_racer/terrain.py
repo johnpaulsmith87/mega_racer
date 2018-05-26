@@ -60,7 +60,7 @@ class Terrain:
         lu.setUniform(self.shader, "terrainTextureXyScale", self.textureXyScale);
         xyNormScale = 1.0 / (vec2(self.imageWidth, self.imageHeight) * self.xyScale);
         lu.setUniform(self.shader, "xyNormScale", xyNormScale);
-        xyOffset = -(vec2(self.imageWidth, self.imageHeight) + vec2(1.0)) * self.xyScale / 2.0;
+        xyOffset = -(vec2(self.imageWidth, self.imageHeight) + vec2(1.0)) / 2.0
         lu.setUniform(self.shader, "xyOffset", xyOffset);
          #FINISH HERE
         #TODO 1.4: Bind the grass texture to the right texture unit, hint: lu.bindTexture
@@ -69,11 +69,12 @@ class Terrain:
         lu.bindTexture(self.TU_road, self.roadTexId)
         lu.bindTexture(self.TU_steep, self.steepTexId)
         lu.bindTexture(self.TU_map, self.terrainDataSampleTexId)
+        lu.setUniform(self.shader, "terrainTexture", self.TU_Grass)
         lu.setUniform(self.shader, "highTexture", self.TU_high)
         lu.setUniform(self.shader, "roadTexture", self.TU_road)
         lu.setUniform(self.shader, "steepTexture", self.TU_steep)
         lu.setUniform(self.shader, "terrainDataSample", self.TU_map)
-        lu.setUniform(self.shader, "terrainTexture", self.TU_Grass)
+
         
         
         if self.renderWireFrame:
@@ -89,11 +90,7 @@ class Terrain:
 
 
     def load(self, imageName, renderingSystem):
-        self.terrainTexId = ObjModel.loadTexture("data/grass2.png","", True)
-        self.highTexId = ObjModel.loadTexture("data/rock 2.png","",True)
-        self.roadTexId = ObjModel.loadTexture("data/paving 5.png","", True)
-        self.steepTexId = ObjModel.loadTexture("data/rock 5.png","", True)
-        self.terrainDataSampleTexId = ObjModel.loadTexture("data/track_01_128.png","", False)
+        
         with Image.open(imageName)  as im:
             self.imageWidth = im.size[0]
             self.imageHeight = im.size[1]
@@ -216,7 +213,7 @@ class Terrain:
                 vec3 v2f_viewSpacePosition;
                 vec3 v2f_viewSpaceNormal;
                 vec3 v2f_worldSpacePosition;
-                float blueChannel;
+                vec2 normalizedXYcoords;
             };
 
             void main() 
@@ -226,7 +223,9 @@ class Terrain:
                 v2f_worldSpacePosition = positionIn;
                 v2f_viewSpacePosition = (modelToViewTransform * vec4(positionIn, 1.0)).xyz;
                 v2f_viewSpaceNormal = modelToViewNormalTransform * normalIn;
-                blueChannel = texture(terrainDataSampler, vec2(v2f_worldSpacePosition.x,v2f_worldSpacePosition.y)*terrainTextureXyScale).b;
+
+                normalizedXYcoords = positionIn.xy * xyNormScale + xyOffset;
+
 	            // gl_Position is a buit-in 'out'-variable that gets passed on to the clipping and rasterization stages (hardware fixed function).
                 // it must be written by the vertex shader in order to produce any drawn geometry. 
                 // We transform the position using one matrix multiply from model to clip space. Note the added 1 at the end of the position to make the 3D
@@ -244,7 +243,7 @@ class Terrain:
                 vec3 v2f_viewSpacePosition;
                 vec3 v2f_viewSpaceNormal;
                 vec3 v2f_worldSpacePosition;
-                float blueChannel;
+                vec2 normalizedXYcoords;
             };
 
             uniform float terrainHeightScale;
@@ -253,7 +252,7 @@ class Terrain:
             uniform sampler2D roadTexture;
             uniform sampler2D highTexture;
             uniform sampler2D steepTexture;
-            uniform sampler2D terrainDataSampler;
+            uniform sampler2D terrainDataSample;
             out vec4 fragmentColor;
 
             void main() 
@@ -264,8 +263,9 @@ class Terrain:
                 vec3 materialColour;
                 float steepThreshold = 0.4;
                 float steepness = dot(normalize(v2f_viewSpaceNormal),vec3(0,1,0));
-                
-                if(blueChannel > 0.1)
+                vec3 blueChannel = texture(terrainDataSample, normalizedXYcoords).xyz;
+
+                if(blueChannel.b == 1.0)
                 {
                     materialColour = texture(roadTexture, vec2(v2f_worldSpacePosition.x,v2f_worldSpacePosition.y) * terrainTextureXyScale).xyz;
                 }
@@ -295,7 +295,11 @@ class Terrain:
         self.shader = lu.buildShader([vertexShader], ["#version 330\n", renderingSystem.commonFragmentShaderCode, fragmentShader], {"positionIn" : 0, "normalIn" : 1})
         
         # TODO 1.4: Load texture and configure the sampler
-
+        self.terrainTexId = ObjModel.loadTexture("data/grass2.png","", True)
+        self.highTexId = ObjModel.loadTexture("data/rock 2.png","",True)
+        self.roadTexId = ObjModel.loadTexture("data/paving 5.png","", True)
+        self.steepTexId = ObjModel.loadTexture("data/rock 5.png","", True)
+        self.terrainDataSampleTexId = ObjModel.loadTexture("data/track_01_128.png","", False)
     # Called by the game to drawt he UI widgets for the terrain.
     def drawUi(self):
         # height scale is read-only as it is not run-time changable (since we use it to compute normals at load-time)
