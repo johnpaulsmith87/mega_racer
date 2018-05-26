@@ -194,6 +194,7 @@ class Terrain:
             in vec3 positionIn;
             in vec3 normalIn;
 
+            uniform mat4 worldToViewTransform;
             uniform mat4 modelToClipTransform;
             uniform mat4 modelToViewTransform;
             uniform mat3 modelToViewNormalTransform;
@@ -214,6 +215,9 @@ class Terrain:
                 vec3 v2f_viewSpaceNormal;
                 vec3 v2f_worldSpacePosition;
                 vec2 normalizedXYcoords;
+                float distance;
+                vec3 viewToVertexPosition;
+                vec3 worldSpaceNormal;
             };
 
             void main() 
@@ -223,9 +227,12 @@ class Terrain:
                 v2f_worldSpacePosition = positionIn;
                 v2f_viewSpacePosition = (modelToViewTransform * vec4(positionIn, 1.0)).xyz;
                 v2f_viewSpaceNormal = modelToViewNormalTransform * normalIn;
-
+                worldSpaceNormal = normalIn;
                 normalizedXYcoords = positionIn.xy * xyNormScale + xyOffset;
-
+                distance = -v2f_viewSpacePosition.z;
+                //first use the worldToViewTransform to get the camera world space coords
+                vec3 cameraPosInWorldSpace = vec3(worldToViewTransform[3][0],worldToViewTransform[3][1],worldToViewTransform[3][2]);
+                viewToVertexPosition = normalize(positionIn - cameraPosInWorldSpace);
 	            // gl_Position is a buit-in 'out'-variable that gets passed on to the clipping and rasterization stages (hardware fixed function).
                 // it must be written by the vertex shader in order to produce any drawn geometry. 
                 // We transform the position using one matrix multiply from model to clip space. Note the added 1 at the end of the position to make the 3D
@@ -244,6 +251,9 @@ class Terrain:
                 vec3 v2f_viewSpaceNormal;
                 vec3 v2f_worldSpacePosition;
                 vec2 normalizedXYcoords;
+                float distance; //camera to geometry distance
+                vec3 viewToVertexPosition;
+                vec3 worldSpaceNormal;
             };
 
             uniform float terrainHeightScale;
@@ -261,19 +271,19 @@ class Terrain:
                 //vec3 materialColour = vec3(v2f_height/terrainHeightScale);
                 // TODO 1.4: Compute the texture coordinates and sample the texture for the grass and use as material colour.
                 vec3 materialColour;
-                float steepThreshold = 0.4;
-                float steepness = dot(normalize(v2f_viewSpaceNormal),vec3(0,1,0));
+                float steepThreshold = 0.959931; //roughly 55 degrees rad
+                float steepness = acos(dot(normalize(worldSpaceNormal), vec3(0,0,1)));
                 vec3 blueChannel = texture(terrainDataSample, normalizedXYcoords).xyz;
 
                 if(blueChannel.b == 1.0)
                 {
                     materialColour = texture(roadTexture, vec2(v2f_worldSpacePosition.x,v2f_worldSpacePosition.y) * terrainTextureXyScale).xyz;
                 }
-                else if(steepness < steepThreshold)
+                else if(steepness > steepThreshold)
                 {
                     materialColour = texture(steepTexture, vec2(v2f_worldSpacePosition.x,v2f_worldSpacePosition.y) * terrainTextureXyScale).xyz;
                 }
-                else if (v2f_height > 50)
+                else if (v2f_height > 55)
                 {
                     materialColour = texture(highTexture, vec2(v2f_worldSpacePosition.x,v2f_worldSpacePosition.y) * terrainTextureXyScale).xyz;
                 }
@@ -283,7 +293,7 @@ class Terrain:
                 }
                 
                 vec3 reflectedLight = computeShading(materialColour, v2f_viewSpacePosition, v2f_viewSpaceNormal, viewSpaceLightPosition, sunLightColour);
-	            fragmentColor = vec4(toSrgb(applyFog(reflectedLight,-v2f_viewSpacePosition.z)), 1.0);
+	            fragmentColor = vec4(toSrgb(applyFog(reflectedLight,distance, v2f_viewSpacePosition, viewToVertexPosition)), 1.0);
 	            //fragmentColor = vec4(toSrgb(vec3(v2f_height/terrainHeightScale)), 1.0);
 
             }

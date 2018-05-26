@@ -118,12 +118,13 @@ class RenderingSystem:
         vec3 incomingLight = incomingIntensity * lightColour;
         return (incomingLight + globalAmbientLight) * materialColour;
     }
-    vec3 applyFog(vec3 shading, float distance)
+    vec3 applyFog(vec3 shading, float distance, vec3 rayOri, vec3 rayDir)
     {
         //using fogColour as average of ambient and sun?
         float b = 0.001;
-        float fogAmount = 1.0 - exp(-distance*b);
-        vec3 fogColour = (sunLightColour + globalAmbientLight) / 2.0;
+        float c = 0.75;
+        float fogAmount = c * exp(-rayOri.y*b) * (1.0-exp( -distance*rayDir.y*b ))/rayDir.y;
+        vec3 fogColour = max(sunLightColour, globalAmbientLight*2.0);
         return mix(shading, fogColour, fogAmount);
     }
     """
