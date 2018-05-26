@@ -283,7 +283,7 @@ class Terrain:
                 }
                 
                 vec3 reflectedLight = computeShading(materialColour, v2f_viewSpacePosition, v2f_viewSpaceNormal, viewSpaceLightPosition, sunLightColour);
-	            fragmentColor = vec4(toSrgb(reflectedLight), 1.0);
+	            fragmentColor = vec4(toSrgb(applyFog(reflectedLight,-v2f_viewSpacePosition.z)), 1.0);
 	            //fragmentColor = vec4(toSrgb(vec3(v2f_height/terrainHeightScale)), 1.0);
 
             }
