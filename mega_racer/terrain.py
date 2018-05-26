@@ -65,6 +65,14 @@ class Terrain:
          #FINISH HERE
         #TODO 1.4: Bind the grass texture to the right texture unit, hint: lu.bindTexture
         lu.bindTexture(self.TU_Grass, self.terrainTexId)
+        lu.bindTexture(self.TU_high, self.highTexId)
+        lu.bindTexture(self.TU_road, self.roadTexId)
+        lu.bindTexture(self.TU_steep, self.steepTexId)
+        lu.bindTexture(self.TU_map, self.terrainDataSampleTexId)
+        lu.setUniform(self.shader, "highTexture", self.TU_high)
+        lu.setUniform(self.shader, "roadTexture", self.TU_road)
+        lu.setUniform(self.shader, "steepTexture", self.TU_steep)
+        lu.setUniform(self.shader, "terrainDataSample", self.TU_map)
         lu.setUniform(self.shader, "terrainTexture", self.TU_Grass)
         
         
@@ -193,6 +201,7 @@ class Terrain:
             uniform mat4 modelToViewTransform;
             uniform mat3 modelToViewNormalTransform;
 
+            uniform sampler2D terrainDataSampler;
             uniform float terrainHeightScale;
             uniform float terrainTextureXyScale;
             uniform vec2 xyNormScale;
@@ -207,6 +216,7 @@ class Terrain:
                 vec3 v2f_viewSpacePosition;
                 vec3 v2f_viewSpaceNormal;
                 vec3 v2f_worldSpacePosition;
+                float blueChannel;
             };
 
             void main() 
@@ -216,7 +226,7 @@ class Terrain:
                 v2f_worldSpacePosition = positionIn;
                 v2f_viewSpacePosition = (modelToViewTransform * vec4(positionIn, 1.0)).xyz;
                 v2f_viewSpaceNormal = modelToViewNormalTransform * normalIn;
-
+                blueChannel = texture(terrainDataSampler, vec2(v2f_worldSpacePosition.x,v2f_worldSpacePosition.y)*terrainTextureXyScale).b;
 	            // gl_Position is a buit-in 'out'-variable that gets passed on to the clipping and rasterization stages (hardware fixed function).
                 // it must be written by the vertex shader in order to produce any drawn geometry. 
                 // We transform the position using one matrix multiply from model to clip space. Note the added 1 at the end of the position to make the 3D
@@ -234,19 +244,44 @@ class Terrain:
                 vec3 v2f_viewSpacePosition;
                 vec3 v2f_viewSpaceNormal;
                 vec3 v2f_worldSpacePosition;
+                float blueChannel;
             };
 
             uniform float terrainHeightScale;
             uniform float terrainTextureXyScale;
             uniform sampler2D terrainTexture;
-
+            uniform sampler2D roadTexture;
+            uniform sampler2D highTexture;
+            uniform sampler2D steepTexture;
+            uniform sampler2D terrainDataSampler;
             out vec4 fragmentColor;
 
             void main() 
             {
+                // trying height = 0.7 / steep 0.5
                 //vec3 materialColour = vec3(v2f_height/terrainHeightScale);
                 // TODO 1.4: Compute the texture coordinates and sample the texture for the grass and use as material colour.
-                vec3 materialColour = texture(terrainTexture, vec2(v2f_worldSpacePosition.x,v2f_worldSpacePosition.y) * terrainTextureXyScale).xyz;
+                vec3 materialColour;
+                float steepThreshold = 0.4;
+                float steepness = dot(normalize(v2f_viewSpaceNormal),vec3(0,1,0));
+                
+                if(blueChannel > 0.1)
+                {
+                    materialColour = texture(roadTexture, vec2(v2f_worldSpacePosition.x,v2f_worldSpacePosition.y) * terrainTextureXyScale).xyz;
+                }
+                else if(steepness < steepThreshold)
+                {
+                    materialColour = texture(steepTexture, vec2(v2f_worldSpacePosition.x,v2f_worldSpacePosition.y) * terrainTextureXyScale).xyz;
+                }
+                else if (v2f_height > 50)
+                {
+                    materialColour = texture(highTexture, vec2(v2f_worldSpacePosition.x,v2f_worldSpacePosition.y) * terrainTextureXyScale).xyz;
+                }
+                else
+                {
+                    materialColour = texture(terrainTexture, vec2(v2f_worldSpacePosition.x,v2f_worldSpacePosition.y) * terrainTextureXyScale).xyz;
+                }
+                
                 vec3 reflectedLight = computeShading(materialColour, v2f_viewSpacePosition, v2f_viewSpaceNormal, viewSpaceLightPosition, sunLightColour);
 	            fragmentColor = vec4(toSrgb(reflectedLight), 1.0);
 	            //fragmentColor = vec4(toSrgb(vec3(v2f_height/terrainHeightScale)), 1.0);
