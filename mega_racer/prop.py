@@ -35,23 +35,23 @@ class Prop:
         scaleAmount = 1
         #put switch statement here for each type of prop if ann where appropriate
         if self.propType == PropType.PALMTREE:
-            scaleAmount = 0.5
+            scaleAmount = 0.1
         elif self.propType == PropType.GUMTREE:
-            scaleAmount = 0.5
+            scaleAmount = 0.1
         elif self.propType == PropType.BIRCHTREE:
             scaleAmount = 1
         elif self.propType == PropType.TREEONE:
             scaleAmount = 1
         elif self.propType == PropType.ROCKONE:
-            scaleAmount = 0.5
+            scaleAmount = 0.1
         elif self.propType == PropType.ROCKTWO:
-            scaleAmount = 0.5
+            scaleAmount = 0.1
         elif self.propType == PropType.ROCKTHREE:
-            scaleAmount = 0.5
+            scaleAmount = 0.1
         elif self.propType == PropType.ROCKFOUR:
-            scaleAmount = 0.5
+            scaleAmount = 0.1
         elif self.propType == PropType.ROCKFIVE:
-            scaleAmount = 0.5
+            scaleAmount = 0.1
 
         modelToWorldTransform = lu.make_mat4_from_zAxis(self.position, self.facing, vec3(0,0,1))
         rotationByRandAmount = lu.make_rotation_z(self.rotAmount)
