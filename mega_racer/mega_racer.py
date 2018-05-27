@@ -533,8 +533,8 @@ g_terrain.load("data/track_01_128.png", g_renderingSystem);
 # create a prop manager with the sample rocks/trees positions
 # loop over sample and append to g_props
 
-treeSample = random.sample(g_terrain.treeLocations,20)
-rockSample = random.sample(g_terrain.rockLocations,20)
+treeSample = random.sample(g_terrain.treeLocations,25)
+rockSample = random.sample(g_terrain.rockLocations,25)
 
 g_racer = Racer()
 g_racer.load("data/racer_forwardz.obj", g_terrain, g_renderingSystem);

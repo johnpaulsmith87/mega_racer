@@ -32,52 +32,28 @@ class Prop:
     terrain = None #not sure if I need this
     propType = 0 # propType will be used for prop specific scaling/etc
     def render(self, view, renderingSystem):
-        scaleAmount = 1
         #put switch statement here for each type of prop if ann where appropriate
-        if self.propType == PropType.PALMTREE:
-            scaleAmount = 0.1
-        elif self.propType == PropType.GUMTREE:
-            scaleAmount = 0.1
-        elif self.propType == PropType.BIRCHTREE:
-            scaleAmount = 1
-        elif self.propType == PropType.TREEONE:
-            scaleAmount = 1
-        elif self.propType == PropType.ROCKONE:
-            scaleAmount = 0.1
-        elif self.propType == PropType.ROCKTWO:
-            scaleAmount = 0.1
-        elif self.propType == PropType.ROCKTHREE:
-            scaleAmount = 0.1
-        elif self.propType == PropType.ROCKFOUR:
-            scaleAmount = 0.1
-        elif self.propType == PropType.ROCKFIVE:
-            scaleAmount = 0.1
 
         modelToWorldTransform = lu.make_mat4_from_zAxis(self.position, self.facing, vec3(0,0,1))
         rotationByRandAmount = lu.make_rotation_z(self.rotAmount)
-        scaleByAmount = lu.make_scale(scaleAmount,scaleAmount,scaleAmount)
-        renderingSystem.drawObjModel(self.model,scaleByAmount*modelToWorldTransform, view)
+        renderingSystem.drawObjModel(self.model,rotationByRandAmount * modelToWorldTransform, view)
     def load(self, model, terrain, renderingSytem, position):
         self.model = model[0]
         self.propType = model[1]
         self.rotAmount = random.uniform(0.001, 6.28319) # ~0 to ~360
         self.terrain = terrain
-        self.position = position
+        info = self.terrain.getInfoAt(position)
+        # need to set position height to terrain height
+        self.position = vec3(position[0],position[1],info.height)
 
 class PropManager:
     trees = []
     rocks = []
     terrain = None
     #list of tuples to send proptype info
-    typeToFileNameList = {"rock":[("data/rocks/rock_01.obj",PropType.ROCKONE),
-                                  ("data/rocks/rock_02.obj",PropType.ROCKTWO),
-                                  ("data/rocks/rock_03.obj",PropType.ROCKTHREE),
-                                  ("data/rocks/rock_04.obj",PropType.ROCKFOUR),
-                                  ("data/rocks/rock_05.obj",PropType.ROCKFIVE)],
+    typeToFileNameList = {"rock":[("data/rocks/rock_01.obj",PropType.ROCKONE)],
                           "tree":[("data/trees/birch_01_d.obj",PropType.BIRCHTREE),
-                                  ("data/trees/tree_01.obj",PropType.TREEONE),
-                                  ("data/trees/gum_tree_zforward.obj",PropType.GUMTREE),
-                                  ("data/trees/palm_tree_zforward.obj",PropType.PALMTREE)]}
+                                  ("data/trees/tree_01.obj",PropType.TREEONE)]}
     def __init__(self, terrain):
         #loads each type of prop and stores in trees and rocks
         self.terrain = terrain
