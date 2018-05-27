@@ -25,6 +25,7 @@
     <Compile Include="lab_utils.py" />
     <Compile Include="mega_racer.py" />
     <Compile Include="ObjModel.py" />
+    <Compile Include="prop.py" />
     <Compile Include="racer.py" />
     <Compile Include="terrain.py" />
   </ItemGroup>

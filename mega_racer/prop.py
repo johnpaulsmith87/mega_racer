@@ -22,7 +22,8 @@ class Prop:
     def render(self, view, renderingSystem):
         #put switch statement here for each type of prop if ann where appropriate
         modelToWorldTransform = lu.make_mat4_from_zAxis(self.position, self.facing, vec3(0,0,1))
-        renderingSystem.drawObjModel(self.model, modelToWorldTransform, view)
+        rotationByRandAmount = lu.make_rotation_z(self.rotAmount)
+        renderingSystem.drawObjModel(self.model,rotationByRandAmount * modelToWorldTransform, view)
     def load(self, model, terrain, renderingSytem, position):
         self.model = model[0]
         self.propType = model[1]
@@ -35,8 +36,15 @@ class PropManager:
     rocks = []
     terrain = None
     #list of tuples to send proptype info
-    typeToFileNameList = {"rock":[("data/rocks/rock_01.obj"),(PropType.ROCKONE)],
-                          "tree":[("data/trees/birch_01_d.obj"),(PropType.BIRCHTREE)]}
+    typeToFileNameList = {"rock":[("data/rocks/rock_01.obj",PropType.ROCKONE),
+                                  ("data/rocks/rock_02.obj",PropType.ROCKTWO),
+                                  ("data/rocks/rock_03.obj",PropType.ROCKTHREE),
+                                  ("data/rocks/rock_04.obj",PropType.ROCKFOUR),
+                                  ("data/rocks/rock_05.obj",PropType.ROCKFIVE)],
+                          "tree":[("data/trees/birch_01_d.obj",PropType.BIRCHTREE),
+                                  ("data/trees/tree_01.obj",PropType.TREEONE),
+                                  ("data/trees/gum_tree_zforward.obj",PropType.GUMTREE),
+                                  ("data/trees/palm_tree_zforward.obj",PropType.PALMTREE)]}
     def __init__(self, terrain):
         #loads each type of prop and stores in trees and rocks
         self.terrain = terrain
