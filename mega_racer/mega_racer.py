@@ -6,7 +6,7 @@ from ctypes import sizeof, c_float, c_void_p, c_uint, string_at
 import math
 import sys
 from PIL import Image
-
+import random
 import imgui
 
 # we use 'warnings' to remove this warning that ImGui[glfw] gives
@@ -22,7 +22,8 @@ from lab_utils import vec3, vec2
 
 from terrain import Terrain
 from racer import Racer
-
+from prop import Prop
+from prop import PropManager
 #
 # global variable declarations
 #
@@ -51,7 +52,7 @@ g_sunAngle = 0.0
 
 g_terrain = None
 g_racer = None
-
+g_props = []
 
 #
 # Key-frames for the sun light and ambient, picked by hand-waving to look ok. Note how most of this is nonsense from a physical point of view and 
@@ -122,7 +123,7 @@ class RenderingSystem:
     {
         //using fogColour as average of ambient and sun?
         float b = 0.001;
-        float c = 0.75;
+        float c = 0.66;
         float fogAmount = c * exp(-rayOri.y*b) * (1.0-exp( -distance*rayDir.y*b ))/rayDir.y;
         vec3 fogColour = max(sunLightColour, globalAmbientLight*2.0);
         return mix(shading, fogColour, fogAmount);
@@ -351,7 +352,8 @@ def renderFrame(width, height):
     # Call each part of the scene to render itself
     g_terrain.render(view, g_renderingSystem)
     g_racer.render(view, g_renderingSystem)
-
+    for p in g_props:
+        p.render(view, g_renderingSystem)
 
 
 
@@ -527,10 +529,21 @@ g_renderingSystem.setupObjModelShader()
 g_terrain = Terrain()
 #g_terrain.load("data/track_01_32.png", g_renderingSystem);
 g_terrain.load("data/track_01_128.png", g_renderingSystem);
+# rock and tree positions have been set > sample 20?
+# create a prop manager with the sample rocks/trees positions
+# loop over sample and append to g_props
+
+treeSample = random.sample(g_terrain.treeLocations,20)
+rockSample = random.sample(g_terrain.rockLocations,20)
 
 g_racer = Racer()
 g_racer.load("data/racer_forwardz.obj", g_terrain, g_renderingSystem);
 
+propManager = PropManager(g_terrain)
+for t in treeSample:
+    g_props.append(createTreeProp(g_renderingSystem, t))
+for r in rockSample:
+    g_props.append(propManager.createRockProp(g_renderingSystem, r))
 # here we'll implement the grass texture loading//etc..
 # I may place this code in a helper function in the future
 

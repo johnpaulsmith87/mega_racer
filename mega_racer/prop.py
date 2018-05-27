@@ -23,34 +23,38 @@ class Prop:
         #put switch statement here for each type of prop if ann where appropriate
         modelToWorldTransform = lu.make_mat4_from_zAxis(self.position, self.facing, vec3(0,0,1))
         renderingSystem.drawObjModel(self.model, modelToWorldTransform, view)
-    def load(self, model, terrain, renderingSytem):
+    def load(self, model, terrain, renderingSytem, position):
         self.model = model[0]
         self.propType = model[1]
-        self.rotAmount = random.uniform(0.001, 6.28319)
+        self.rotAmount = random.uniform(0.001, 6.28319) # ~0 to ~360
+        self.terrain = terrain
+        self.position = position
 
 class PropManager:
     trees = []
     rocks = []
+    terrain = None
     #list of tuples to send proptype info
     typeToFileNameList = {"rock":[("data/rocks/rock_01.obj"),(PropType.ROCKONE)],
                           "tree":[("data/trees/birch_01_d.obj"),(PropType.BIRCHTREE)]}
-    def __init__(self):
+    def __init__(self, terrain):
         #loads each type of prop and stores in trees and rocks
+        self.terrain = terrain
         for f in self.typeToFileNameList["rock"]:
             self.rocks.append((ObjModel(f[0]),f[1]))
         for f in self.typeToFileNameList["tree"]:
             self.trees.append((ObjModel(f[0]),f[1]))
-    def createTreeProp(terrain, renderingSystem):
+    def createTreeProp(terrain, renderingSystem, position):
         newProp = Prop()
         numTrees = len(self.trees)
         treeInd = random.randint(0, numTrees - 1)
-        newProp.load(trees[treeInd],terrain, renderSystem)
+        newProp.load(trees[treeInd],terrain, renderSystem, position)
         return newProp
-    def createRockProp(terrain, renderingSystem):
+    def createRockProp(terrain, renderingSystem, position):
         newProp = Prop()
         numRocks = len(self.rocks)
         rockInd = random.randint(0, numRocks - 1)
-        newProp.load(rocks[rockInd],terrain, renderSystem)
+        newProp.load(rocks[rockInd],terrain, renderSystem, position)
         return newProp
 
 
