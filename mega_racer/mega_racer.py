@@ -541,9 +541,9 @@ g_racer.load("data/racer_forwardz.obj", g_terrain, g_renderingSystem);
 
 propManager = PropManager(g_terrain)
 for t in treeSample:
-    g_props.append(createTreeProp(g_renderingSystem, t))
+    g_props.append(propManager.createTreeProp(g_terrain,g_renderingSystem, t))
 for r in rockSample:
-    g_props.append(propManager.createRockProp(g_renderingSystem, r))
+    g_props.append(propManager.createRockProp(g_terrain,g_renderingSystem, r))
 # here we'll implement the grass texture loading//etc..
 # I may place this code in a helper function in the future
 
