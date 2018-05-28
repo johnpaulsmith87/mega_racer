@@ -34,6 +34,11 @@ class Terrain:
     roadTexId = None
     steepTexId = None
     terrainDataSampleTexId = None
+    #specular textures
+    specGrassTexId = None
+    specHighTexId = None
+    specRoadTexId = None
+    specSteepTexId = None
 
     # Lists of locations generated from the map texture green channel (see the 'load' method)
     # you can add any other meaning of other values as you see fit.
@@ -51,6 +56,10 @@ class Terrain:
     TU_road = 2
     TU_steep = 3
     TU_map = 4
+    TU_spec_grass = 5
+    TU_spec_high = 6
+    TU_spec_steep = 7
+    TU_spec_road = 8
 
     def render(self, view, renderingSystem):
         glUseProgram(self.shader)
@@ -69,14 +78,23 @@ class Terrain:
         lu.bindTexture(self.TU_road, self.roadTexId)
         lu.bindTexture(self.TU_steep, self.steepTexId)
         lu.bindTexture(self.TU_map, self.terrainDataSampleTexId)
+        #bind specs
+        lu.bindTexture(self.TU_spec_grass, self.specGrassTexId)
+        lu.bindTexture(self.TU_spec_high, self.specHighTexId)
+        lu.bindTexture(self.TU_spec_road, self.specRoadTexId)
+        lu.bindTexture(self.TU_spec_steep, self.specSteepTexId)
+        #set uniform specs
+        lu.setUniform(self.shader, "specularGrassTexture", self.TU_spec_grass)
+        lu.setUniform(self.shader, "specularHighTexture", self.TU_spec_high)
+        lu.setUniform(self.shader, "specularRoadTexture", self.TU_spec_road)
+        lu.setUniform(self.shader, "specularSteepTexture", self.TU_spec_steep)
+        #
         lu.setUniform(self.shader, "terrainTexture", self.TU_Grass)
         lu.setUniform(self.shader, "highTexture", self.TU_high)
         lu.setUniform(self.shader, "roadTexture", self.TU_road)
         lu.setUniform(self.shader, "steepTexture", self.TU_steep)
         lu.setUniform(self.shader, "terrainDataSample", self.TU_map)
 
-        
-        
         if self.renderWireFrame:
             glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
             glLineWidth(1.0);
@@ -263,6 +281,11 @@ class Terrain:
             uniform sampler2D highTexture;
             uniform sampler2D steepTexture;
             uniform sampler2D terrainDataSample;
+            //
+            uniform sampler2D specularGrassTexture;
+            uniform sampler2D specularHighTexture;
+            uniform sampler2D specularRoadTexture;
+            uniform sampler2D specularSteepTexture;
             out vec4 fragmentColor;
 
             void main() 
@@ -270,29 +293,39 @@ class Terrain:
                 // trying height = 0.7 / steep 0.5
                 //vec3 materialColour = vec3(v2f_height/terrainHeightScale);
                 // TODO 1.4: Compute the texture coordinates and sample the texture for the grass and use as material colour.
-                vec3 materialColour;
+                vec3 materialDiffuse;
+                vec3 materialSpecular;
                 float steepThreshold = 0.959931; //roughly 55 degrees rad
                 float steepness = acos(dot(normalize(worldSpaceNormal), vec3(0,0,1)));
                 vec3 blueChannel = texture(terrainDataSample, normalizedXYcoords).xyz;
+                float matSpecExp;
 
                 if(blueChannel.b == 1.0)
                 {
-                    materialColour = texture(roadTexture, vec2(v2f_worldSpacePosition.x,v2f_worldSpacePosition.y) * terrainTextureXyScale).xyz;
+                    materialDiffuse = texture(roadTexture, vec2(v2f_worldSpacePosition.x,v2f_worldSpacePosition.y) * terrainTextureXyScale).xyz;
+                    materialSpecular = texture(specularRoadTexture, vec2(v2f_worldSpacePosition.x,v2f_worldSpacePosition.y) * terrainTextureXyScale).xyz;
+                    matSpecExp = 16.0;
                 }
                 else if(steepness > steepThreshold)
                 {
-                    materialColour = texture(steepTexture, vec2(v2f_worldSpacePosition.x,v2f_worldSpacePosition.y) * terrainTextureXyScale).xyz;
+                    materialDiffuse = texture(steepTexture, vec2(v2f_worldSpacePosition.x,v2f_worldSpacePosition.y) * terrainTextureXyScale).xyz;
+                    materialSpecular = texture(specularSteepTexture, vec2(v2f_worldSpacePosition.x,v2f_worldSpacePosition.y) * terrainTextureXyScale).xyz;
+                    matSpecExp = 16.0;
                 }
                 else if (v2f_height > 55)
                 {
-                    materialColour = texture(highTexture, vec2(v2f_worldSpacePosition.x,v2f_worldSpacePosition.y) * terrainTextureXyScale).xyz;
+                    materialDiffuse = texture(highTexture, vec2(v2f_worldSpacePosition.x,v2f_worldSpacePosition.y) * terrainTextureXyScale).xyz;
+                    materialSpecular = texture(specularHighTexture, vec2(v2f_worldSpacePosition.x,v2f_worldSpacePosition.y) * terrainTextureXyScale).xyz;
+                    matSpecExp = 16.0;
                 }
                 else
                 {
-                    materialColour = texture(terrainTexture, vec2(v2f_worldSpacePosition.x,v2f_worldSpacePosition.y) * terrainTextureXyScale).xyz;
+                    materialDiffuse = texture(terrainTexture, vec2(v2f_worldSpacePosition.x,v2f_worldSpacePosition.y) * terrainTextureXyScale).xyz;
+                    materialSpecular = texture(specularGrassTexture, vec2(v2f_worldSpacePosition.x,v2f_worldSpacePosition.y) * terrainTextureXyScale).xyz;
+                    matSpecExp = 16.0;
                 }
                 
-                vec3 reflectedLight = computeShading(materialColour, v2f_viewSpacePosition, v2f_viewSpaceNormal, viewSpaceLightPosition, sunLightColour);
+                vec3 reflectedLight = computeShading(materialDiffuse, materialSpecular, v2f_viewSpacePosition, v2f_viewSpaceNormal, viewSpaceLightPosition, sunLightColour, matSpecExp);
 	            fragmentColor = vec4(toSrgb(applyFog(reflectedLight,distance, v2f_viewSpacePosition, viewToVertexPosition)), 1.0);
 	            //fragmentColor = vec4(toSrgb(vec3(v2f_height/terrainHeightScale)), 1.0);
 
@@ -309,6 +342,10 @@ class Terrain:
         self.highTexId = ObjModel.loadTexture("data/rock 2.png","",True)
         self.roadTexId = ObjModel.loadTexture("data/paving 5.png","", True)
         self.steepTexId = ObjModel.loadTexture("data/rock 5.png","", True)
+        self.specGrassTexId = ObjModel.loadTexture("data/grass_specular.png","", True)
+        self.specHighTexId = ObjModel.loadTexture("data/high_specular.png","", True)
+        self.specSteepTexId = ObjModel.loadTexture("data/steep_specular.png","", True)
+        self.specRoadTexId = ObjModel.loadTexture("data/road_specular.png","", True)
         self.terrainDataSampleTexId = ObjModel.loadTexture("data/track_01_128.png","", False)
     # Called by the game to drawt he UI widgets for the terrain.
     def drawUi(self):

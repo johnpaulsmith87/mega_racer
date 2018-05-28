@@ -109,22 +109,32 @@ class RenderingSystem:
     {
       return pow(color, vec3(1.0 / 2.2));
     }
+    vec3 fresnelSchick(vec3 r0, float cosAngle){
+	return r0 + (vec3(1.0) - r0) * pow (1.0 - cosAngle , 5.0);
+    }
 
-
-    vec3 computeShading(vec3 materialColour, vec3 viewSpacePosition, vec3 viewSpaceNormal, vec3 viewSpaceLightPos, vec3 lightColour)
+    vec3 computeShading(vec3 materialDiffuse, vec3 materialSpecular, vec3 viewSpacePosition, vec3 viewSpaceNormal, vec3 viewSpaceLightPos, vec3 lightColour, float matSpecExp)
     {
         // TODO 1.5: Here's where code to compute shading would be placed most conveniently
+        vec3 viewSpaceDirToEye = normalize(-viewSpacePosition);
+        viewSpaceNormal = normalize(viewSpaceNormal);
         vec3 viewSpaceDirectionToLight = normalize(viewSpaceLightPos - viewSpacePosition);
         float incomingIntensity = max(0.0, dot(viewSpaceNormal, viewSpaceDirectionToLight));
         vec3 incomingLight = incomingIntensity * lightColour;
-        return (incomingLight + globalAmbientLight) * materialColour;
+        vec3 halfVector = normalize(viewSpaceDirectionToLight + viewSpaceDirToEye);
+        float specularNormalizationFactor = ((matSpecExp + 2.0)/ (2.0));
+	    float specularIntensity = specularNormalizationFactor * pow(max(0.0, dot(viewSpaceNormal, halfVector)), matSpecExp);
+	    vec3 fresnelSpecular = fresnelSchick(materialSpecular, max(0.0,dot(viewSpaceDirectionToLight, halfVector)));
+
+        return (incomingLight + globalAmbientLight) * materialDiffuse
+            + incomingLight * specularIntensity * fresnelSpecular;
     }
     vec3 applyFog(vec3 shading, float distance, vec3 rayOri, vec3 rayDir)
     {
         //using fogColour as average of ambient and sun?
         float b = 0.001;
         float c = 0.66;
-        float fogAmount = c * exp(-rayOri.y*b) * (1.0-exp( -distance*rayDir.y*b ))/rayDir.y;
+        float fogAmount = c * exp(-rayOri.z*b) * (1.0-exp( -distance*rayDir.z*b ))/rayDir.z;
         vec3 fogColour = max(sunLightColour, globalAmbientLight*2.0);
         return mix(shading, fogColour, fogAmount);
     }
@@ -233,8 +243,8 @@ class RenderingSystem:
 	                }
 
 	                vec3 materialDiffuse = texture(diffuse_texture, v2f_texCoord).xyz * material_diffuse_color;
-
-                    vec3 reflectedLight = computeShading(materialDiffuse, v2f_viewSpacePosition, v2f_viewSpaceNormal, viewSpaceLightPosition, sunLightColour) + material_emissive_color;
+                    vec3 materialSpecular = texture(diffuse_texture, v2f_texCoord).xyz * material_specular_color;
+                    vec3 reflectedLight = computeShading(materialDiffuse, materialSpecular,v2f_viewSpacePosition, v2f_viewSpaceNormal, viewSpaceLightPosition, sunLightColour, material_specular_exponent) + material_emissive_color;
 
 	                fragmentColor = vec4(toSrgb(reflectedLight), material_alpha);
                 }
@@ -298,6 +308,8 @@ def update(dt, keyStateMap, mouseDelta):
     g_globalAmbientLight = sampleKeyFrames(lu.dot(lu.normalize(g_sunPosition), vec3(0.0, 0.0, 1.0)), g_ambientKeyFrames)
 
     g_racer.update(dt, keyStateMap)
+    for p in g_props:
+        p.update()
     viewHeight = g_followCamOffset / math.sqrt(2)
     viewDistanceXYPlaneVec = viewHeight * normalize(g_racer.heading)
     g_viewPosition = [g_racer.position[0] - viewDistanceXYPlaneVec[0], g_racer.position[1] - viewDistanceXYPlaneVec[1], viewHeight + g_racer.position[2]]

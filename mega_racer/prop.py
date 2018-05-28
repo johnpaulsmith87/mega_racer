@@ -31,6 +31,7 @@ class Prop:
     model = None #model to use
     terrain = None #not sure if I need this
     propType = 0 # propType will be used for prop specific scaling/etc
+    zOffset = 3.0
     def render(self, view, renderingSystem):
         #put switch statement here for each type of prop if ann where appropriate
 
@@ -42,10 +43,12 @@ class Prop:
         self.propType = model[1]
         self.rotAmount = random.uniform(0.001, 6.28319) # ~0 to ~360
         self.terrain = terrain
-        info = self.terrain.getInfoAt(position)
+        #info = self.terrain.getInfoAt(position)
         # need to set position height to terrain height
-        self.position = vec3(position[0],position[1],info.height)
-
+        self.position = position
+    def update(self):
+        info = self.terrain.getInfoAt(self.position)
+        self.position[2] = lu.mix(self.position[2], info.height + self.zOffset, 0.1);
 class PropManager:
     trees = []
     rocks = []
