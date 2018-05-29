@@ -299,33 +299,35 @@ class Terrain:
                 float steepness = acos(dot(normalize(worldSpaceNormal), vec3(0,0,1)));
                 vec3 blueChannel = texture(terrainDataSample, normalizedXYcoords).xyz;
                 float matSpecExp;
+                vec3 reflectedLight;
 
                 if(blueChannel.b == 1.0)
                 {
                     materialDiffuse = texture(roadTexture, vec2(v2f_worldSpacePosition.x,v2f_worldSpacePosition.y) * terrainTextureXyScale).xyz;
                     materialSpecular = texture(specularRoadTexture, vec2(v2f_worldSpacePosition.x,v2f_worldSpacePosition.y) * terrainTextureXyScale).xyz;
-                    matSpecExp = 16.0;
+                    reflectedLight = computeShadingDiffuse(materialDiffuse, v2f_viewSpacePosition, v2f_viewSpaceNormal, viewSpaceLightPosition, sunLightColour);
                 }
                 else if(steepness > steepThreshold)
                 {
                     materialDiffuse = texture(steepTexture, vec2(v2f_worldSpacePosition.x,v2f_worldSpacePosition.y) * terrainTextureXyScale).xyz;
                     materialSpecular = texture(specularSteepTexture, vec2(v2f_worldSpacePosition.x,v2f_worldSpacePosition.y) * terrainTextureXyScale).xyz;
-                    matSpecExp = 16.0;
+                    reflectedLight = computeShadingDiffuse(materialDiffuse, v2f_viewSpacePosition, v2f_viewSpaceNormal, viewSpaceLightPosition, sunLightColour);
                 }
                 else if (v2f_height > 55)
                 {
                     materialDiffuse = texture(highTexture, vec2(v2f_worldSpacePosition.x,v2f_worldSpacePosition.y) * terrainTextureXyScale).xyz;
                     materialSpecular = texture(specularHighTexture, vec2(v2f_worldSpacePosition.x,v2f_worldSpacePosition.y) * terrainTextureXyScale).xyz;
-                    matSpecExp = 16.0;
+                    matSpecExp = 50.0;
+                    reflectedLight = computeShadingSpecular(materialDiffuse, materialSpecular, v2f_viewSpacePosition, v2f_viewSpaceNormal, viewSpaceLightPosition, sunLightColour, matSpecExp);
                 }
                 else
                 {
                     materialDiffuse = texture(terrainTexture, vec2(v2f_worldSpacePosition.x,v2f_worldSpacePosition.y) * terrainTextureXyScale).xyz;
                     materialSpecular = texture(specularGrassTexture, vec2(v2f_worldSpacePosition.x,v2f_worldSpacePosition.y) * terrainTextureXyScale).xyz;
-                    matSpecExp = 16.0;
+                    matSpecExp = 150.0;
+                    reflectedLight = computeShadingSpecular(materialDiffuse, materialSpecular, v2f_viewSpacePosition, v2f_viewSpaceNormal, viewSpaceLightPosition, sunLightColour, matSpecExp);
                 }
                 
-                vec3 reflectedLight = computeShading(materialDiffuse, materialSpecular, v2f_viewSpacePosition, v2f_viewSpaceNormal, viewSpaceLightPosition, sunLightColour, matSpecExp);
 	            fragmentColor = vec4(toSrgb(applyFog(reflectedLight,distance, v2f_viewSpacePosition, viewToVertexPosition)), 1.0);
 	            //fragmentColor = vec4(toSrgb(vec3(v2f_height/terrainHeightScale)), 1.0);
 

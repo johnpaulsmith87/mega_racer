@@ -113,7 +113,7 @@ class RenderingSystem:
 	return r0 + (vec3(1.0) - r0) * pow (1.0 - cosAngle , 5.0);
     }
 
-    vec3 computeShading(vec3 materialDiffuse, vec3 materialSpecular, vec3 viewSpacePosition, vec3 viewSpaceNormal, vec3 viewSpaceLightPos, vec3 lightColour, float matSpecExp)
+    vec3 computeShadingSpecular(vec3 materialDiffuse, vec3 materialSpecular, vec3 viewSpacePosition, vec3 viewSpaceNormal, vec3 viewSpaceLightPos, vec3 lightColour, float matSpecExp)
     {
         // TODO 1.5: Here's where code to compute shading would be placed most conveniently
         vec3 viewSpaceDirToEye = normalize(-viewSpacePosition);
@@ -128,6 +128,15 @@ class RenderingSystem:
 
         return (incomingLight + globalAmbientLight) * materialDiffuse
             + incomingLight * specularIntensity * fresnelSpecular;
+    }
+    vec3 computeShadingDiffuse(vec3 materialDiffuse, vec3 viewSpacePosition, vec3 viewSpaceNormal, vec3 viewSpaceLightPos, vec3 lightColour)
+    {
+        // TODO 1.5: Here's where code to compute shading would be placed most conveniently
+        viewSpaceNormal = normalize(viewSpaceNormal);
+        vec3 viewSpaceDirectionToLight = normalize(viewSpaceLightPos - viewSpacePosition);
+        float incomingIntensity = max(0.0, dot(viewSpaceNormal, viewSpaceDirectionToLight));
+        vec3 incomingLight = incomingIntensity * lightColour;
+        return (incomingLight + globalAmbientLight) * materialDiffuse;
     }
     vec3 applyFog(vec3 shading, float distance, vec3 rayOri, vec3 rayDir)
     {
@@ -244,8 +253,7 @@ class RenderingSystem:
 
 	                vec3 materialDiffuse = texture(diffuse_texture, v2f_texCoord).xyz * material_diffuse_color;
                     vec3 materialSpecular = texture(diffuse_texture, v2f_texCoord).xyz * material_specular_color;
-                    vec3 reflectedLight = computeShading(materialDiffuse, materialSpecular,v2f_viewSpacePosition, v2f_viewSpaceNormal, viewSpaceLightPosition, sunLightColour, material_specular_exponent) + material_emissive_color;
-
+                    vec3 reflectedLight = computeShadingDiffuse(materialDiffuse,v2f_viewSpacePosition, v2f_viewSpaceNormal, viewSpaceLightPosition, sunLightColour) + material_emissive_color;
 	                fragmentColor = vec4(toSrgb(reflectedLight), material_alpha);
                 }
             """], ObjModel.getDefaultAttributeBindings())
