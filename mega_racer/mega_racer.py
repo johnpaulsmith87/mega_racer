@@ -8,7 +8,7 @@ import sys
 from PIL import Image
 import random
 import imgui
-
+import shadow
 # we use 'warnings' to remove this warning that ImGui[glfw] gives
 import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
@@ -50,6 +50,9 @@ g_sunLightColour = [0.9, 0.8, 0.7]
 g_updateSun = True
 g_sunAngle = 0.0
 
+g_fbo = None
+g_shadowTexId = None
+g_shadowShader = None
 g_terrain = None
 g_racer = None
 g_props = []
@@ -81,10 +84,11 @@ g_ambientKeyFrames = [
 # object makes it easier to pass around. It is also convenient future-proofing if we want to add more
 # views (e.g., for a shadow map).
 class ViewParams:
-	viewToClipTransform = lu.Mat4()
-	worldToViewTransform = lu.Mat4()
-	width = 0
-	height = 0
+    viewToClipTransform = lu.Mat4();
+    worldToViewTransform = lu.Mat4();
+    depthMVPTransform = lu.Mat4();
+    width = 0;
+    height = 0
 
 
 
@@ -99,7 +103,7 @@ class RenderingSystem:
 
     uniform mat4 worldToViewTransform;
     uniform mat4 viewSpaceToSmTextureSpace;
-    uniform sampler2DShadow shadowMapTexture;
+    //uniform sampler2DShadow shadowMapTexture;
 
     uniform vec3 viewSpaceLightPosition;
     uniform vec3 sunLightColour;
@@ -112,8 +116,22 @@ class RenderingSystem:
     vec3 fresnelSchick(vec3 r0, float cosAngle){
 	return r0 + (vec3(1.0) - r0) * pow (1.0 - cosAngle , 5.0);
     }
+    float ShadowCalculation(vec4 fragPosLightSpace,in sampler2D shadowMap)
+    {
+        // perform perspective divide
+        vec3 projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;
+        // transform to [0,1] range
+        projCoords = projCoords * 0.5 + 0.5;
+        // get closest depth value from light's perspective (using [0,1] range fragPosLight as coords)
+        float closestDepth = texture(shadowMap, projCoords.xy).r; 
+        // get depth of current fragment from light's perspective
+        float currentDepth = projCoords.z;
+        // check whether current frag pos is in shadow
+        float shadow = currentDepth > closestDepth  ? 1.0 : 0.0;
 
-    vec3 computeShadingSpecular(vec3 materialDiffuse, vec3 materialSpecular, vec3 viewSpacePosition, vec3 viewSpaceNormal, vec3 viewSpaceLightPos, vec3 lightColour, float matSpecExp)
+    return shadow;
+    } 
+    vec3 computeShadingSpecular(vec3 materialDiffuse, vec3 materialSpecular, vec3 viewSpacePosition, vec3 viewSpaceNormal, vec3 viewSpaceLightPos, vec3 lightColour, float matSpecExp, vec4 fragPosLightSpace,in sampler2D shadowMap)
     {
         // TODO 1.5: Here's where code to compute shading would be placed most conveniently
         vec3 viewSpaceDirToEye = normalize(-viewSpacePosition);
@@ -125,11 +143,21 @@ class RenderingSystem:
         float specularNormalizationFactor = ((matSpecExp + 2.0)/ (2.0));
 	    float specularIntensity = specularNormalizationFactor * pow(max(0.0, dot(viewSpaceNormal, halfVector)), matSpecExp);
 	    vec3 fresnelSpecular = fresnelSchick(materialSpecular, max(0.0,dot(viewSpaceDirectionToLight, halfVector)));
-
-        return (incomingLight + globalAmbientLight) * materialDiffuse
-            + incomingLight * specularIntensity * fresnelSpecular;
+        float shadow = ShadowCalculation(fragPosLightSpace, shadowMap);
+        return (incomingLight * (1.0 - shadow) + globalAmbientLight) * materialDiffuse
+            + incomingLight * specularIntensity * fresnelSpecular * (1.0 - shadow);
     }
-    vec3 computeShadingDiffuse(vec3 materialDiffuse, vec3 viewSpacePosition, vec3 viewSpaceNormal, vec3 viewSpaceLightPos, vec3 lightColour)
+    vec3 computeShadingDiffuse(vec3 materialDiffuse, vec3 viewSpacePosition, vec3 viewSpaceNormal, vec3 viewSpaceLightPos, vec3 lightColour, vec4 fragPosLightSpace,in sampler2D shadowMap)
+    {
+        // TODO 1.5: Here's where code to compute shading would be placed most conveniently
+        viewSpaceNormal = normalize(viewSpaceNormal);
+        vec3 viewSpaceDirectionToLight = normalize(viewSpaceLightPos - viewSpacePosition);
+        float incomingIntensity = max(0.0, dot(viewSpaceNormal, viewSpaceDirectionToLight));
+        vec3 incomingLight = incomingIntensity * lightColour;
+        float shadow = ShadowCalculation(fragPosLightSpace, shadowMap);
+        return (incomingLight * (1.0 - shadow) + globalAmbientLight) * materialDiffuse;
+    }
+    vec3 computeShading(vec3 materialDiffuse, vec3 viewSpacePosition, vec3 viewSpaceNormal, vec3 viewSpaceLightPos, vec3 lightColour)
     {
         // TODO 1.5: Here's where code to compute shading would be placed most conveniently
         viewSpaceNormal = normalize(viewSpaceNormal);
@@ -253,7 +281,7 @@ class RenderingSystem:
 
 	                vec3 materialDiffuse = texture(diffuse_texture, v2f_texCoord).xyz * material_diffuse_color;
                     vec3 materialSpecular = texture(diffuse_texture, v2f_texCoord).xyz * material_specular_color;
-                    vec3 reflectedLight = computeShadingDiffuse(materialDiffuse,v2f_viewSpacePosition, v2f_viewSpaceNormal, viewSpaceLightPosition, sunLightColour) + material_emissive_color;
+                    vec3 reflectedLight = computeShading(materialDiffuse,v2f_viewSpacePosition, v2f_viewSpaceNormal, viewSpaceLightPosition, sunLightColour) + material_emissive_color;
 	                fragmentColor = vec4(toSrgb(reflectedLight), material_alpha);
                 }
             """], ObjModel.getDefaultAttributeBindings())
@@ -351,16 +379,8 @@ def update(dt, keyStateMap, mouseDelta):
 
 # Called once per frame by the main loop below
 def renderFrame(width, height):
-    glViewport(0, 0, width, height);
-    glClearColor(g_backGroundColour[0], g_backGroundColour[1], g_backGroundColour[2], 1.0)
-    glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT)
-
     aspectRatio = float(width) / float(height)
-
-    # ViewParams is used to contain the needed data to represent a 'view' mostly we want to get at the
-    # projection and world-to-view transform, as these are used in all shaders. Keeping them in one 
-    # object makes it easier to pass around. It is also convenient future-proofing if we want to add more
-    # views (e.g., for a shadow map).
+    #shadow pass?
     view = ViewParams()
     # Projection (view to clip space transform)
     view.viewToClipTransform = lu.make_perspective(g_fov, aspectRatio, g_nearDistance, g_farDistance)
@@ -368,9 +388,24 @@ def renderFrame(width, height):
     view.worldToViewTransform = lu.make_lookAt(g_viewPosition, g_viewTarget, g_viewUp)
     view.width = width
     view.height = height
+    # the values are taken from Tutorial 16
+    view.depthMVPTransform = lu.orthographic_projection_matrix(-10.0,10.0,-10.0,10.0,g_nearDistance,g_farDistance) * lu.make_lookAt(g_sunPosition,[0,0,0],g_viewUp)
+    #shadow.shadowRenderPass(g_shadowShader, view, g_renderingSystem, g_shadowTexId, g_terrain, g_fbo)
+    glViewport(0, 0, width, height);
+    glClearColor(g_backGroundColour[0], g_backGroundColour[1], g_backGroundColour[2], 1.0)
+    glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT)
 
+    
+
+    # ViewParams is used to contain the needed data to represent a 'view' mostly we want to get at the
+    # projection and world-to-view transform, as these are used in all shaders. Keeping them in one 
+    # object makes it easier to pass around. It is also convenient future-proofing if we want to add more
+    # views (e.g., for a shadow map).
+    
+
+    
     # Call each part of the scene to render itself
-    g_terrain.render(view, g_renderingSystem)
+    g_terrain.render(view, g_renderingSystem, g_shadowTexId)
     g_racer.render(view, g_renderingSystem)
     for p in g_props:
         p.render(view, g_renderingSystem)
@@ -546,6 +581,8 @@ impl = ImGuiGlfwRenderer(window)
 g_renderingSystem = RenderingSystem()
 g_renderingSystem.setupObjModelShader()
 
+g_shadowTexId, g_fbo = shadow.setupShadowMap()
+g_shadowShader = shadow.buildShadowShader()
 g_terrain = Terrain()
 #g_terrain.load("data/track_01_32.png", g_renderingSystem);
 g_terrain.load("data/track_01_128.png", g_renderingSystem);

@@ -27,6 +27,9 @@
     <Compile Include="ObjModel.py" />
     <Compile Include="prop.py" />
     <Compile Include="racer.py" />
+    <Compile Include="shadow.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="terrain.py" />
   </ItemGroup>
   <PropertyGroup>

@@ -4,7 +4,7 @@ import numpy as np
 import math
 from PIL import Image
 import imgui
-
+import shadow
 import lab_utils as lu
 from lab_utils import vec3, vec2
 from ObjModel import ObjModel
@@ -60,8 +60,8 @@ class Terrain:
     TU_spec_high = 6
     TU_spec_steep = 7
     TU_spec_road = 8
-
-    def render(self, view, renderingSystem):
+    
+    def render(self, view, renderingSystem, depthMap):
         glUseProgram(self.shader)
         renderingSystem.setCommonUniforms(self.shader, view, lu.Mat4())
 
@@ -71,6 +71,10 @@ class Terrain:
         lu.setUniform(self.shader, "xyNormScale", xyNormScale);
         xyOffset = -(vec2(self.imageWidth, self.imageHeight) + vec2(1.0)) / 2.0
         lu.setUniform(self.shader, "xyOffset", xyOffset);
+        lu.setUniform(self.shader,"depthMVPTransform", view.depthMVPTransform)
+        #depthTexture binding for use in terrain frag shader
+        lu.bindTexture(shadow.TU_depthTexture, depthMap)
+        lu.setUniform(self.shader, "shadowMapTexture", shadow.TU_depthTexture)
          #FINISH HERE
         #TODO 1.4: Bind the grass texture to the right texture unit, hint: lu.bindTexture
         lu.bindTexture(self.TU_Grass, self.terrainTexId)
@@ -216,7 +220,8 @@ class Terrain:
             uniform mat4 modelToClipTransform;
             uniform mat4 modelToViewTransform;
             uniform mat3 modelToViewNormalTransform;
-
+            uniform mat4 depthMVPTransform;
+            
             uniform sampler2D terrainDataSampler;
             uniform float terrainHeightScale;
             uniform float terrainTextureXyScale;
@@ -236,6 +241,7 @@ class Terrain:
                 float distance;
                 vec3 viewToVertexPosition;
                 vec3 worldSpaceNormal;
+                vec4 fragPosLightSpace;
             };
 
             void main() 
@@ -255,6 +261,7 @@ class Terrain:
                 // it must be written by the vertex shader in order to produce any drawn geometry. 
                 // We transform the position using one matrix multiply from model to clip space. Note the added 1 at the end of the position to make the 3D
                 // coordinate homogeneous.
+                fragPosLightSpace = depthMVPTransform * vec4(positionIn, 1.0);
 	            gl_Position = modelToClipTransform * vec4(positionIn, 1.0);
             }
 """
@@ -272,6 +279,7 @@ class Terrain:
                 float distance; //camera to geometry distance
                 vec3 viewToVertexPosition;
                 vec3 worldSpaceNormal;
+                vec4 fragPosLightSpace;
             };
 
             uniform float terrainHeightScale;
@@ -286,6 +294,8 @@ class Terrain:
             uniform sampler2D specularHighTexture;
             uniform sampler2D specularRoadTexture;
             uniform sampler2D specularSteepTexture;
+            //
+            uniform sampler2D shadowMapTexture;
             out vec4 fragmentColor;
 
             void main() 
@@ -305,27 +315,27 @@ class Terrain:
                 {
                     materialDiffuse = texture(roadTexture, vec2(v2f_worldSpacePosition.x,v2f_worldSpacePosition.y) * terrainTextureXyScale).xyz;
                     materialSpecular = texture(specularRoadTexture, vec2(v2f_worldSpacePosition.x,v2f_worldSpacePosition.y) * terrainTextureXyScale).xyz;
-                    reflectedLight = computeShadingDiffuse(materialDiffuse, v2f_viewSpacePosition, v2f_viewSpaceNormal, viewSpaceLightPosition, sunLightColour);
+                    reflectedLight = computeShadingDiffuse(materialDiffuse, v2f_viewSpacePosition, v2f_viewSpaceNormal, viewSpaceLightPosition, sunLightColour, fragPosLightSpace, shadowMapTexture);
                 }
                 else if(steepness > steepThreshold)
                 {
                     materialDiffuse = texture(steepTexture, vec2(v2f_worldSpacePosition.x,v2f_worldSpacePosition.y) * terrainTextureXyScale).xyz;
                     materialSpecular = texture(specularSteepTexture, vec2(v2f_worldSpacePosition.x,v2f_worldSpacePosition.y) * terrainTextureXyScale).xyz;
-                    reflectedLight = computeShadingDiffuse(materialDiffuse, v2f_viewSpacePosition, v2f_viewSpaceNormal, viewSpaceLightPosition, sunLightColour);
+                    reflectedLight = computeShadingDiffuse(materialDiffuse, v2f_viewSpacePosition, v2f_viewSpaceNormal, viewSpaceLightPosition, sunLightColour, fragPosLightSpace, shadowMapTexture);
                 }
                 else if (v2f_height > 55)
                 {
                     materialDiffuse = texture(highTexture, vec2(v2f_worldSpacePosition.x,v2f_worldSpacePosition.y) * terrainTextureXyScale).xyz;
                     materialSpecular = texture(specularHighTexture, vec2(v2f_worldSpacePosition.x,v2f_worldSpacePosition.y) * terrainTextureXyScale).xyz;
                     matSpecExp = 50.0;
-                    reflectedLight = computeShadingSpecular(materialDiffuse, materialSpecular, v2f_viewSpacePosition, v2f_viewSpaceNormal, viewSpaceLightPosition, sunLightColour, matSpecExp);
+                    reflectedLight = computeShadingSpecular(materialDiffuse, materialSpecular, v2f_viewSpacePosition, v2f_viewSpaceNormal, viewSpaceLightPosition, sunLightColour, matSpecExp,  fragPosLightSpace, shadowMapTexture);
                 }
                 else
                 {
                     materialDiffuse = texture(terrainTexture, vec2(v2f_worldSpacePosition.x,v2f_worldSpacePosition.y) * terrainTextureXyScale).xyz;
                     materialSpecular = texture(specularGrassTexture, vec2(v2f_worldSpacePosition.x,v2f_worldSpacePosition.y) * terrainTextureXyScale).xyz;
                     matSpecExp = 150.0;
-                    reflectedLight = computeShadingSpecular(materialDiffuse, materialSpecular, v2f_viewSpacePosition, v2f_viewSpaceNormal, viewSpaceLightPosition, sunLightColour, matSpecExp);
+                    reflectedLight = computeShadingSpecular(materialDiffuse, materialSpecular, v2f_viewSpacePosition, v2f_viewSpaceNormal, viewSpaceLightPosition, sunLightColour, matSpecExp,  fragPosLightSpace, shadowMapTexture);
                 }
                 
 	            fragmentColor = vec4(toSrgb(applyFog(reflectedLight,distance, v2f_viewSpacePosition, viewToVertexPosition)), 1.0);
