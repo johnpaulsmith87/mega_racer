@@ -350,7 +350,7 @@ def update(dt, keyStateMap, mouseDelta):
     viewDistanceXYPlaneVec = viewHeight * normalize(g_racer.heading)
     g_viewPosition = [g_racer.position[0] - viewDistanceXYPlaneVec[0], g_racer.position[1] - viewDistanceXYPlaneVec[1], viewHeight + g_racer.position[2]]
     g_viewTarget = [g_racer.position[0], g_racer.position[1], g_racer.position[2] + g_followCamLookOffset]
-
+    print(g_racer.position)
     # TODO 1.2: Make the camera look at the racer. Code for updating the camera should be done after the 
     # racer, otherwise the offset will lag and it generally looks weird.
 
@@ -383,16 +383,21 @@ def renderFrame(width, height):
     #shadow pass?
     view = ViewParams()
     # Projection (view to clip space transform)
+    glClearColor(g_backGroundColour[0], g_backGroundColour[1], g_backGroundColour[2], 1.0)
+    glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT)
     view.viewToClipTransform = lu.make_perspective(g_fov, aspectRatio, g_nearDistance, g_farDistance)
     # Transform from world space to view space.
     view.worldToViewTransform = lu.make_lookAt(g_viewPosition, g_viewTarget, g_viewUp)
+    #debug
+    #view.worldToViewTransform = lu.make_lookAt(g_sunPosition,[0.0,0.0,0.0],g_viewUp)
     view.width = width
     view.height = height
     # the values are taken from Tutorial 16
-    view.depthMVPTransform = lu.orthographic_projection_matrix(-10.0,10.0,-10.0,10.0,g_nearDistance,g_farDistance) * lu.make_lookAt(g_sunPosition,[0,0,0],g_viewUp)
-    #shadow.shadowRenderPass(g_shadowShader, view, g_renderingSystem, g_shadowTexId, g_terrain, g_fbo)
-    glViewport(0, 0, width, height);
-    glClearColor(g_backGroundColour[0], g_backGroundColour[1], g_backGroundColour[2], 1.0)
+    lightPOV = lu.make_lookAt(g_sunPosition,[0.0,0.0,0.0],g_viewUp)
+    view.depthMVPTransform = lu.orthographic_projection_matrix(-10.0,10.0,-10.0,10.0,g_nearDistance,g_farDistance) * lightPOV
+    shadow.shadowRenderPass(g_shadowShader, view, g_renderingSystem, g_shadowTexId, g_terrain, g_fbo)
+
+    glViewport(0, 0, width, height)
     glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT)
 
     
@@ -573,28 +578,28 @@ glfw.make_context_current(window)
 print("--------------------------------------\nOpenGL\n  Vendor: %s\n  Renderer: %s\n  Version: %s\n--------------------------------------\n" % (glGetString(GL_VENDOR).decode("utf8"), glGetString(GL_RENDERER).decode("utf8"), glGetString(GL_VERSION).decode("utf8")), flush=True)
 
 # Enable some much-needed hardware functions that are off by default.
-glEnable(GL_CULL_FACE);
-glEnable(GL_DEPTH_TEST);
+glEnable(GL_CULL_FACE)
+glEnable(GL_DEPTH_TEST)
 
 impl = ImGuiGlfwRenderer(window)
 
 g_renderingSystem = RenderingSystem()
 g_renderingSystem.setupObjModelShader()
 
-g_shadowTexId, g_fbo = shadow.setupShadowMap()
-g_shadowShader = shadow.buildShadowShader()
+
 g_terrain = Terrain()
 #g_terrain.load("data/track_01_32.png", g_renderingSystem);
 g_terrain.load("data/track_01_128.png", g_renderingSystem);
 # rock and tree positions have been set > sample 20?
 # create a prop manager with the sample rocks/trees positions
 # loop over sample and append to g_props
-
+g_shadowTexId, g_fbo = shadow.setupShadowMap(g_terrain)
+g_shadowShader = shadow.buildShadowShader()
 treeSample = random.sample(g_terrain.treeLocations,25)
 rockSample = random.sample(g_terrain.rockLocations,25)
 
 g_racer = Racer()
-g_racer.load("data/racer_forwardz.obj", g_terrain, g_renderingSystem);
+g_racer.load("data/racer_02.obj", g_terrain, g_renderingSystem);
 
 propManager = PropManager(g_terrain)
 for t in treeSample:

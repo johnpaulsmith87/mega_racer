@@ -235,15 +235,15 @@ def make_perspective(yFovDeg, aspect, n, f):
 
 #used for shadow map projection matrix
 def orthographic_projection_matrix(l,r,b,t,n,f):
-    rminl = r - l
-    tminb = t - b
-    nminf = n - f
-    lplur = l + r
-    bplut = b + t
-    npluf = n + f
-    return Mat4([[2.0/rminl,0,0,-lplur/rminl],
-                 [0,2/tminb,0,-bplut/tminb],
-                 [0,0,2.0/nminf,-npluf/nminf],
+    ax = (2.0)/(r - l)
+    dx = -((l + r)/(r - l))
+    by = (2.0)/(t - b)
+    dy = -((b + t)/(t - b))
+    cz = (2.0)/(n - f)
+    dz = -((n + f)/(n - f))
+    return Mat4([[ax,0,0,dx],
+                 [0,by,0,dy],
+                 [0,0,cz,dz],
                  [0,0,0,1]])
 
 # Turns a multidimensional array (up to 3d?) into a 1D array

@@ -71,7 +71,7 @@ class Terrain:
         lu.setUniform(self.shader, "xyNormScale", xyNormScale);
         xyOffset = -(vec2(self.imageWidth, self.imageHeight) + vec2(1.0)) / 2.0
         lu.setUniform(self.shader, "xyOffset", xyOffset);
-        lu.setUniform(self.shader,"depthMVPTransform", view.depthMVPTransform)
+        lu.setUniform(self.shader,"lightPOVTransform", view.depthMVPTransform)
         #depthTexture binding for use in terrain frag shader
         lu.bindTexture(shadow.TU_depthTexture, depthMap)
         lu.setUniform(self.shader, "shadowMapTexture", shadow.TU_depthTexture)
@@ -310,7 +310,7 @@ class Terrain:
                 vec3 blueChannel = texture(terrainDataSample, normalizedXYcoords).xyz;
                 float matSpecExp;
                 vec3 reflectedLight;
-
+                
                 if(blueChannel.b == 1.0)
                 {
                     materialDiffuse = texture(roadTexture, vec2(v2f_worldSpacePosition.x,v2f_worldSpacePosition.y) * terrainTextureXyScale).xyz;
@@ -338,6 +338,8 @@ class Terrain:
                     reflectedLight = computeShadingSpecular(materialDiffuse, materialSpecular, v2f_viewSpacePosition, v2f_viewSpaceNormal, viewSpaceLightPosition, sunLightColour, matSpecExp,  fragPosLightSpace, shadowMapTexture);
                 }
                 
+                //float depthValue = texture(shadowMapTexture, vec2(v2f_worldSpacePosition.x,v2f_worldSpacePosition.y) * terrainTextureXyScale).r;
+                //fragmentColor = vec4(vec3(depthValue), 1.0);
 	            fragmentColor = vec4(toSrgb(applyFog(reflectedLight,distance, v2f_viewSpacePosition, viewToVertexPosition)), 1.0);
 	            //fragmentColor = vec4(toSrgb(vec3(v2f_height/terrainHeightScale)), 1.0);
 
