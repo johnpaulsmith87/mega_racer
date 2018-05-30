@@ -220,7 +220,7 @@ class Terrain:
             uniform mat4 modelToClipTransform;
             uniform mat4 modelToViewTransform;
             uniform mat3 modelToViewNormalTransform;
-            uniform mat4 depthMVPTransform;
+            uniform mat4 lightPOVTransform;
             
             uniform sampler2D terrainDataSampler;
             uniform float terrainHeightScale;
@@ -261,7 +261,7 @@ class Terrain:
                 // it must be written by the vertex shader in order to produce any drawn geometry. 
                 // We transform the position using one matrix multiply from model to clip space. Note the added 1 at the end of the position to make the 3D
                 // coordinate homogeneous.
-                fragPosLightSpace = depthMVPTransform * vec4(positionIn, 1.0);
+                fragPosLightSpace = lightPOVTransform * vec4(positionIn, 1.0);
 	            gl_Position = modelToClipTransform * vec4(positionIn, 1.0);
             }
 """

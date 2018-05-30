@@ -73,10 +73,13 @@ def shadowRenderPass(shadowShader, view, renderingSystem, shadowTex, terrain, fb
     glUseProgram(shadowShader)
     #set common unforms?
     #bind terrain vertex array! -> we need terrain scene geometry...
-    glBindVertexArray(terrain.vertexArrayObject)
+    
     #bindTextures?
     lu.bindTexture(TU_depthTexture, shadowTex)
     lu.setUniform(shadowShader,"lightPOVTransform", view.depthMVPTransform)
+    glBindVertexArray(terrain.vertexArrayObject)
+    glDrawElements(GL_TRIANGLES, len(terrain.terrainInds), GL_UNSIGNED_INT, None);
+
     glDrawBuffer(GL_NONE)
     glBindFramebuffer(GL_FRAMEBUFFER, 0); 
     glBindVertexArray(0)
