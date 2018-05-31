@@ -56,7 +56,7 @@ g_shadowShader = None
 g_terrain = None
 g_racer = None
 g_props = []
-
+g_TU_shadow = None
 #
 # Key-frames for the sun light and ambient, picked by hand-waving to look ok. Note how most of this is nonsense from a physical point of view and 
 # some of the reasoning is basically to compensate for the lack of exposure (or tone-mapping).
@@ -103,7 +103,7 @@ class RenderingSystem:
 
     uniform mat4 worldToViewTransform;
     uniform mat4 viewSpaceToSmTextureSpace;
-    //uniform sampler2DShadow shadowMapTexture;
+    uniform sampler2DShadow shadowMapTexture;
 
     uniform vec3 viewSpaceLightPosition;
     uniform vec3 sunLightColour;
@@ -116,14 +116,14 @@ class RenderingSystem:
     vec3 fresnelSchick(vec3 r0, float cosAngle){
 	return r0 + (vec3(1.0) - r0) * pow (1.0 - cosAngle , 5.0);
     }
-    float ShadowCalculation(vec4 fragPosLightSpace,in sampler2D shadowMap)
+    float ShadowCalculation(vec4 fragPosLightSpace)
     {
         // perform perspective divide
         vec3 projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;
         // transform to [0,1] range
         projCoords = projCoords * 0.5 + 0.5;
         // get closest depth value from light's perspective (using [0,1] range fragPosLight as coords)
-        float closestDepth = texture(shadowMap, projCoords.xy).r; 
+        float closestDepth = texture(shadowMapTexture, projCoords).r; 
         // get depth of current fragment from light's perspective
         float currentDepth = projCoords.z;
         // check whether current frag pos is in shadow
@@ -131,7 +131,7 @@ class RenderingSystem:
 
     return shadow;
     } 
-    vec3 computeShadingSpecular(vec3 materialDiffuse, vec3 materialSpecular, vec3 viewSpacePosition, vec3 viewSpaceNormal, vec3 viewSpaceLightPos, vec3 lightColour, float matSpecExp, vec4 fragPosLightSpace,in sampler2D shadowMap)
+    vec3 computeShadingSpecular(vec3 materialDiffuse, vec3 materialSpecular, vec3 viewSpacePosition, vec3 viewSpaceNormal, vec3 viewSpaceLightPos, vec3 lightColour, float matSpecExp, vec4 fragPosLightSpace)
     {
         // TODO 1.5: Here's where code to compute shading would be placed most conveniently
         vec3 viewSpaceDirToEye = normalize(-viewSpacePosition);
@@ -143,18 +143,18 @@ class RenderingSystem:
         float specularNormalizationFactor = ((matSpecExp + 2.0)/ (2.0));
 	    float specularIntensity = specularNormalizationFactor * pow(max(0.0, dot(viewSpaceNormal, halfVector)), matSpecExp);
 	    vec3 fresnelSpecular = fresnelSchick(materialSpecular, max(0.0,dot(viewSpaceDirectionToLight, halfVector)));
-        float shadow = ShadowCalculation(fragPosLightSpace, shadowMap);
+        float shadow = ShadowCalculation(fragPosLightSpace);
         return (incomingLight * (1.0 - shadow) + globalAmbientLight) * materialDiffuse
             + incomingLight * specularIntensity * fresnelSpecular * (1.0 - shadow);
     }
-    vec3 computeShadingDiffuse(vec3 materialDiffuse, vec3 viewSpacePosition, vec3 viewSpaceNormal, vec3 viewSpaceLightPos, vec3 lightColour, vec4 fragPosLightSpace,in sampler2D shadowMap)
+    vec3 computeShadingDiffuse(vec3 materialDiffuse, vec3 viewSpacePosition, vec3 viewSpaceNormal, vec3 viewSpaceLightPos, vec3 lightColour, vec4 fragPosLightSpace)
     {
         // TODO 1.5: Here's where code to compute shading would be placed most conveniently
         viewSpaceNormal = normalize(viewSpaceNormal);
         vec3 viewSpaceDirectionToLight = normalize(viewSpaceLightPos - viewSpacePosition);
         float incomingIntensity = max(0.0, dot(viewSpaceNormal, viewSpaceDirectionToLight));
         vec3 incomingLight = incomingIntensity * lightColour;
-        float shadow = ShadowCalculation(fragPosLightSpace, shadowMap);
+        float shadow = ShadowCalculation(fragPosLightSpace);
         return (incomingLight * (1.0 - shadow) + globalAmbientLight) * materialDiffuse;
     }
     vec3 computeShading(vec3 materialDiffuse, vec3 viewSpacePosition, vec3 viewSpaceNormal, vec3 viewSpaceLightPos, vec3 lightColour)
@@ -201,6 +201,8 @@ class RenderingSystem:
         lu.setUniform(shader, "viewSpaceLightPosition", viewSpaceLightPosition);
         lu.setUniform(shader, "globalAmbientLight", g_globalAmbientLight);
         lu.setUniform(shader, "sunLightColour", g_sunLightColour);
+        lu.bindTexture(g_TU_shadow, g_shadowTexId)
+        lu.setUniform(shader, "shadowMapTexture", g_shadowTexId)
 
     def drawObjModel(self, model, modelToWorldTransform, view):    
         # Bind the shader program such that we can set the uniforms (model.render sets it again)
@@ -393,7 +395,7 @@ def renderFrame(width, height):
     view.width = width
     view.height = height
     # the values are taken from Tutorial 16
-    lightPOV = lu.make_lookAt(g_sunPosition,[0.0,0.0,0.0],g_viewUp)
+    lightPOV = lu.make_lookAt(g_sunPosition,g_viewTarget,g_viewUp)
     view.depthMVPTransform = lu.orthographic_projection_matrix(-10.0,10.0,-10.0,10.0,g_nearDistance,g_farDistance) * lightPOV
     shadow.shadowRenderPass(g_shadowShader, view, g_renderingSystem, g_shadowTexId, g_terrain, g_fbo)
 
@@ -593,7 +595,7 @@ g_terrain.load("data/track_01_128.png", g_renderingSystem);
 # rock and tree positions have been set > sample 20?
 # create a prop manager with the sample rocks/trees positions
 # loop over sample and append to g_props
-g_shadowTexId, g_fbo = shadow.setupShadowMap(g_terrain)
+g_shadowTexId, g_fbo, g_TU_shadow = shadow.setupShadowMap()
 g_shadowShader = shadow.buildShadowShader()
 treeSample = random.sample(g_terrain.treeLocations,25)
 rockSample = random.sample(g_terrain.rockLocations,25)

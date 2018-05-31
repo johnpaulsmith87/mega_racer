@@ -73,8 +73,8 @@ class Terrain:
         lu.setUniform(self.shader, "xyOffset", xyOffset);
         lu.setUniform(self.shader,"lightPOVTransform", view.depthMVPTransform)
         #depthTexture binding for use in terrain frag shader
-        lu.bindTexture(shadow.TU_depthTexture, depthMap)
-        lu.setUniform(self.shader, "shadowMapTexture", shadow.TU_depthTexture)
+        #lu.bindTexture(shadow.TU_depthTexture, depthMap)
+        #lu.setUniform(self.shader, "shadowMapTexture", shadow.TU_depthTexture)
          #FINISH HERE
         #TODO 1.4: Bind the grass texture to the right texture unit, hint: lu.bindTexture
         lu.bindTexture(self.TU_Grass, self.terrainTexId)
@@ -242,6 +242,7 @@ class Terrain:
                 vec3 viewToVertexPosition;
                 vec3 worldSpaceNormal;
                 vec4 fragPosLightSpace;
+                vec3 cameraPosInWorldSpace;
             };
 
             void main() 
@@ -255,7 +256,7 @@ class Terrain:
                 normalizedXYcoords = positionIn.xy * xyNormScale + xyOffset;
                 distance = -v2f_viewSpacePosition.z;
                 //first use the worldToViewTransform to get the camera world space coords
-                vec3 cameraPosInWorldSpace = vec3(worldToViewTransform[3][0],worldToViewTransform[3][1],worldToViewTransform[3][2]);
+                cameraPosInWorldSpace = vec3(worldToViewTransform[3][0],worldToViewTransform[3][1],worldToViewTransform[3][2]);
                 viewToVertexPosition = normalize(positionIn - cameraPosInWorldSpace);
 	            // gl_Position is a buit-in 'out'-variable that gets passed on to the clipping and rasterization stages (hardware fixed function).
                 // it must be written by the vertex shader in order to produce any drawn geometry. 
@@ -280,6 +281,7 @@ class Terrain:
                 vec3 viewToVertexPosition;
                 vec3 worldSpaceNormal;
                 vec4 fragPosLightSpace;
+                vec3 cameraPosInWorldSpace;
             };
 
             uniform float terrainHeightScale;
@@ -295,7 +297,6 @@ class Terrain:
             uniform sampler2D specularRoadTexture;
             uniform sampler2D specularSteepTexture;
             //
-            uniform sampler2D shadowMapTexture;
             out vec4 fragmentColor;
 
             void main() 
@@ -315,32 +316,32 @@ class Terrain:
                 {
                     materialDiffuse = texture(roadTexture, vec2(v2f_worldSpacePosition.x,v2f_worldSpacePosition.y) * terrainTextureXyScale).xyz;
                     materialSpecular = texture(specularRoadTexture, vec2(v2f_worldSpacePosition.x,v2f_worldSpacePosition.y) * terrainTextureXyScale).xyz;
-                    reflectedLight = computeShadingDiffuse(materialDiffuse, v2f_viewSpacePosition, v2f_viewSpaceNormal, viewSpaceLightPosition, sunLightColour, fragPosLightSpace, shadowMapTexture);
+                    reflectedLight = computeShadingDiffuse(materialDiffuse, v2f_viewSpacePosition, v2f_viewSpaceNormal, viewSpaceLightPosition, sunLightColour, fragPosLightSpace);
                 }
                 else if(steepness > steepThreshold)
                 {
                     materialDiffuse = texture(steepTexture, vec2(v2f_worldSpacePosition.x,v2f_worldSpacePosition.y) * terrainTextureXyScale).xyz;
                     materialSpecular = texture(specularSteepTexture, vec2(v2f_worldSpacePosition.x,v2f_worldSpacePosition.y) * terrainTextureXyScale).xyz;
-                    reflectedLight = computeShadingDiffuse(materialDiffuse, v2f_viewSpacePosition, v2f_viewSpaceNormal, viewSpaceLightPosition, sunLightColour, fragPosLightSpace, shadowMapTexture);
+                    reflectedLight = computeShadingDiffuse(materialDiffuse, v2f_viewSpacePosition, v2f_viewSpaceNormal, viewSpaceLightPosition, sunLightColour, fragPosLightSpace);
                 }
                 else if (v2f_height > 55)
                 {
                     materialDiffuse = texture(highTexture, vec2(v2f_worldSpacePosition.x,v2f_worldSpacePosition.y) * terrainTextureXyScale).xyz;
                     materialSpecular = texture(specularHighTexture, vec2(v2f_worldSpacePosition.x,v2f_worldSpacePosition.y) * terrainTextureXyScale).xyz;
                     matSpecExp = 50.0;
-                    reflectedLight = computeShadingSpecular(materialDiffuse, materialSpecular, v2f_viewSpacePosition, v2f_viewSpaceNormal, viewSpaceLightPosition, sunLightColour, matSpecExp,  fragPosLightSpace, shadowMapTexture);
+                    reflectedLight = computeShadingSpecular(materialDiffuse, materialSpecular, v2f_viewSpacePosition, v2f_viewSpaceNormal, viewSpaceLightPosition, sunLightColour, matSpecExp,  fragPosLightSpace);
                 }
                 else
                 {
                     materialDiffuse = texture(terrainTexture, vec2(v2f_worldSpacePosition.x,v2f_worldSpacePosition.y) * terrainTextureXyScale).xyz;
                     materialSpecular = texture(specularGrassTexture, vec2(v2f_worldSpacePosition.x,v2f_worldSpacePosition.y) * terrainTextureXyScale).xyz;
                     matSpecExp = 150.0;
-                    reflectedLight = computeShadingSpecular(materialDiffuse, materialSpecular, v2f_viewSpacePosition, v2f_viewSpaceNormal, viewSpaceLightPosition, sunLightColour, matSpecExp,  fragPosLightSpace, shadowMapTexture);
+                    reflectedLight = computeShadingSpecular(materialDiffuse, materialSpecular, v2f_viewSpacePosition, v2f_viewSpaceNormal, viewSpaceLightPosition, sunLightColour, matSpecExp,  fragPosLightSpace);
                 }
                 
                 //float depthValue = texture(shadowMapTexture, vec2(v2f_worldSpacePosition.x,v2f_worldSpacePosition.y) * terrainTextureXyScale).r;
                 //fragmentColor = vec4(vec3(depthValue), 1.0);
-	            fragmentColor = vec4(toSrgb(applyFog(reflectedLight,distance, v2f_viewSpacePosition, viewToVertexPosition)), 1.0);
+	            fragmentColor = vec4(toSrgb(applyFog(reflectedLight,distance, cameraPosInWorldSpace, viewToVertexPosition)), 1.0);
 	            //fragmentColor = vec4(toSrgb(vec3(v2f_height/terrainHeightScale)), 1.0);
 
             }

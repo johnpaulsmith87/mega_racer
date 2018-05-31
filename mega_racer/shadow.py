@@ -25,7 +25,7 @@ g_shadowHeight = 1024
 TU_depthTexture = 9
 TU_depthTexture2 = 10 #??
 vertexArrayObject = None
-def setupShadowMap(terrain):
+def setupShadowMap():
     depthTexture = glGenTextures(1)
     glBindTexture(GL_TEXTURE_2D, depthTexture)
     glTexImage2D(GL_TEXTURE_2D, 0,GL_DEPTH_COMPONENT, g_shadowWidth, g_shadowHeight, 0,GL_DEPTH_COMPONENT, GL_FLOAT, None)
@@ -40,7 +40,7 @@ def setupShadowMap(terrain):
     glBindFramebuffer(GL_FRAMEBUFFER, 0)
     if glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE:
         return False
-    return depthTexture, fbo # not sure if I need to return these!
+    return depthTexture, fbo, TU_depthTexture # not sure if I need to return these!
 def shadowVertShader():
     shader = """
                 #version 330 core
@@ -71,7 +71,7 @@ def buildShadowShader():
 def shadowRenderPass(shadowShader, view, renderingSystem, shadowTex, terrain, fbo):
     
     glViewport(0,0,g_shadowWidth,g_shadowHeight)
-    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, fbo)
+    glBindFramebuffer(GL_FRAMEBUFFER, fbo)
     glClearDepth(1.0)
     glClear(GL_DEPTH_BUFFER_BIT)
     glUseProgram(shadowShader)
@@ -79,11 +79,12 @@ def shadowRenderPass(shadowShader, view, renderingSystem, shadowTex, terrain, fb
     #set common unforms?
     #bind terrain vertex array! -> we need terrain scene geometry...
     #bindTextures?
+    
     lu.bindTexture(TU_depthTexture, shadowTex)
     lu.setUniform(shadowShader,"lightPOVTransform", view.depthMVPTransform)
     glBindVertexArray(terrain.vertexArrayObject)
     glDrawElements(GL_TRIANGLES, len(terrain.terrainInds), GL_UNSIGNED_INT, None);
-    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0)
+    glBindFramebuffer(GL_FRAMEBUFFER, 0)
     glBindVertexArray(0)
     glUseProgram(0)
 
