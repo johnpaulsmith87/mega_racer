@@ -103,7 +103,7 @@ class RenderingSystem:
 
     uniform mat4 worldToViewTransform;
     uniform mat4 viewSpaceToSmTextureSpace;
-    uniform sampler2DShadow shadowMapTexture;
+    uniform sampler2D shadowMapTexture;
 
     uniform vec3 viewSpaceLightPosition;
     uniform vec3 sunLightColour;
@@ -123,7 +123,7 @@ class RenderingSystem:
         // transform to [0,1] range
         projCoords = projCoords * 0.5 + 0.5;
         // get closest depth value from light's perspective (using [0,1] range fragPosLight as coords)
-        float closestDepth = texture(shadowMapTexture, projCoords).r; 
+        float closestDepth = texture(shadowMapTexture, projCoords.xy).r; 
         // get depth of current fragment from light's perspective
         float currentDepth = projCoords.z;
         // check whether current frag pos is in shadow
@@ -385,8 +385,6 @@ def renderFrame(width, height):
     #shadow pass?
     view = ViewParams()
     # Projection (view to clip space transform)
-    glClearColor(g_backGroundColour[0], g_backGroundColour[1], g_backGroundColour[2], 1.0)
-    glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT)
     view.viewToClipTransform = lu.make_perspective(g_fov, aspectRatio, g_nearDistance, g_farDistance)
     # Transform from world space to view space.
     view.worldToViewTransform = lu.make_lookAt(g_viewPosition, g_viewTarget, g_viewUp)
@@ -396,7 +394,7 @@ def renderFrame(width, height):
     view.height = height
     # the values are taken from Tutorial 16
     lightPOV = lu.make_lookAt(g_sunPosition,g_viewTarget,g_viewUp)
-    view.depthMVPTransform = lu.orthographic_projection_matrix(-10.0,10.0,-10.0,10.0,g_nearDistance,g_farDistance) * lightPOV
+    view.depthMVPTransform = lu.orthographic_projection_matrix(0,1024,0,1024,g_nearDistance,g_farDistance) * lightPOV
     shadow.shadowRenderPass(g_shadowShader, view, g_renderingSystem, g_shadowTexId, g_terrain, g_fbo)
 
     glViewport(0, 0, width, height)
